@@ -1,0 +1,50 @@
+const tf = require('@tensorflow/tfjs-node');
+const cv = require('opencv4nodejs');
+const SerialPort = require('serialport');
+const Readline = require('@serialport/parser-readline');
+
+const labels = ['Happy', 'Sad', 'Angry', 'Scared', 'Neutral'];
+
+// Load TFLite model (converted to TF.js format)
+const loadModel = async () => {
+  return await tf.loadGraphModel('file://model/model.json');
+};
+
+// Open serial port
+const openSerialPort = (portName) => {
+  const port = new SerialPort(portName, { baudRate: 9600 });
+  const parser = port.pipe(new Readline({ delimiter: '\n' }));
+  return { port, parser };
+};
+
+// Send message to Arduino
+const sendToArduino = (port, message) => {
+  port.write(message + '\n');
+};
+
+// Main loop
+(async () => {
+  const model = await loadModel();
+  const { port } = openSerialPort('/dev/ttyUSB0'); // Adjust for your OS
+
+  const cap = new cv.VideoCapture(0);
+  cap.set(cv.CAP_PROP_FRAME_WIDTH, 224);
+  cap.set(cv.CAP_PROP_FRAME_HEIGHT, 224);
+
+  while (true) {
+    let frame = cap.read();
+    frame = frame.resize(224, 224);
+    frame = frame.div(255.0);
+
+    const inputTensor = tf.tensor4d(frame.getDataAsArray(), [1, 224, 224, 3]);
+    const output = model.predict(inputTensor);
+    const scores = output.dataSync();
+    const maxIdx = scores.indexOf(Math.max(...scores));
+    const expression = labels[maxIdx];
+
+    console.log('Detected:', expression);
+    sendToArduino(port, expression);
+
+    await new Promise(resolve => setTimeout(resolve, 30));
+  }
+})();

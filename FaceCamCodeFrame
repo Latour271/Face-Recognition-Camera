@@ -5,7 +5,7 @@ const Readline = require('@serialport/parser-readline');
 
 const labels = ['Happy', 'Sad', 'Angry', 'Scared', 'Neutral'];
 
-// Load TFLite model (converted to TF.js format)
+// Load TF.js model
 const loadModel = async () => {
   return await tf.loadGraphModel('file://model/model.json');
 };
@@ -22,6 +22,15 @@ const sendToArduino = (port, message) => {
   port.write(message + '\n');
 };
 
+// Convert OpenCV Mat to Tensor
+const matToTensor = (mat) => {
+  // Convert Mat to a standard JS array
+  const img = mat.getData();
+  const tensor = tf.tensor3d(img, [mat.rows, mat.cols, mat.channels()]);
+  // Normalize to [0,1]
+  return tensor.div(255.0).expandDims(0); // shape [1,224,224,3]
+};
+
 // Main loop
 (async () => {
   const model = await loadModel();
@@ -33,18 +42,24 @@ const sendToArduino = (port, message) => {
 
   while (true) {
     let frame = cap.read();
-    frame = frame.resize(224, 224);
-    frame = frame.div(255.0);
 
-    const inputTensor = tf.tensor4d(frame.getDataAsArray(), [1, 224, 224, 3]);
+    // If webcam returns empty frame, skip
+    if (frame.empty) {
+      cap.reset();
+      continue;
+    }
+
+    frame = frame.resize(224, 224);
+    const inputTensor = matToTensor(frame);
+
     const output = model.predict(inputTensor);
-    const scores = output.dataSync();
+    const scores = await output.data(); // async
     const maxIdx = scores.indexOf(Math.max(...scores));
     const expression = labels[maxIdx];
 
     console.log('Detected:', expression);
     sendToArduino(port, expression);
 
-    await new Promise(resolve => setTimeout(resolve, 30));
+    await new Promise(resolve => setTimeout(resolve, 100)); // ~10 FPS
   }
 })();

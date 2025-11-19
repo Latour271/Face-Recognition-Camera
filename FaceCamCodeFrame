@@ -34,7 +34,7 @@ const matToTensor = (mat) => {
 // Main loop
 (async () => {
   const model = await loadModel();
-  const { port } = openSerialPort('/dev/ttyUSB0'); // Adjust for your OS
+  const { port } = openSerialPort('COM3'); // Adjust for your OS
 
   const cap = new cv.VideoCapture(0);
   cap.set(cv.CAP_PROP_FRAME_WIDTH, 224);

@@ -5,14 +5,14 @@ import serial
 import time
 
 # Load model exported from Teachable Machine
-model = tf.keras.models.load_model("../model/keras_model.h5")
+model = tf.keras.models.load_model(r"C:\Users\ababb\OneDrive\Documents\School Project\v1\keras_model.h5")
 
 # Open labels file
-with open("../model/labels.txt", "r") as f:
+with open(r"C:\Users\ababb\OneDrive\Documents\School Project\v1\labels.txt", "r") as f:
     labels = f.read().splitlines()
 
-# Serial port for Arduino Mega 2560 (update if needed)
-arduino = serial.Serial('COM4', 9600)
+# Serial port for Arduino Mega 2560
+arduino = serial.Serial('COM3', 9600)
 time.sleep(2)
 
 # Open webcam
